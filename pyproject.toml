@@ -1,6 +1,6 @@
 [project]
 name = "zfs-agent"
-version = "0.0.0"
+version = "0.0.1"
 description = "ZFS management for unprivileged user via socket"
 authors = [{ name = "Simon Wörpel", email = "simon.woerpel@pm.me" }]
 license = "AGPL-3.0-or-later"
