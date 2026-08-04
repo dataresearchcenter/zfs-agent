@@ -4,7 +4,7 @@ ZFS dataset management for unprivileged users via a Unix domain socket.
 
 A host-side agent runs with ZFS privileges and executes validated `zfs create` requests on behalf of clients that lack ZFS tools or privileges – typically containers. Used in [ftm-lakehouse](https://openaleph.org/docs/lib/ftm-lakehouse/deployment/zfs/).
 
-Linux only (peer authentication relies on `SO_PEERCRED`), Python 3.11+, no
+Linux only (peer authentication relies on `SO_PEERCRED`), Python 3.9+, no
 dependencies.
 
 ## Install
