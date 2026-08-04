@@ -1,0 +1,49 @@
+[project]
+name = "zfs-agent"
+version = "0.0.0"
+description = "ZFS management for unprivileged user via socket"
+authors = [{ name = "Simon Wörpel", email = "simon.woerpel@pm.me" }]
+license = "AGPL-3.0-or-later"
+readme = "README.md"
+classifiers = [
+    "Intended Audience :: Developers",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+]
+requires-python = ">=3.11,<3.15"
+dependencies = [
+    "typer (>=0.26,<1)",
+    "orjson (>=3.10.18,<4.0.0)",
+    "structlog (>=26.1.0,<27.0.0)",
+]
+
+[project.scripts]
+zfs-agent = "zfs_agent.cli:cli"
+
+[project.urls]
+Homepage = "https://github.com/dataresearchcenter/zfs-agent"
+Documentation = "https://github.com/dataresearchcenter/zfs-agent"
+Repository = "https://github.com/dataresearchcenter/zfs-agent"
+Issues = "https://github.com/dataresearchcenter/zfs-agent/issues"
+
+[tool.poetry.group.dev.dependencies]
+pytest = ">=9.1.1,<10.0.0"
+pytest-cov = ">=4.1,<8.0"
+black = ">=26.5.1,<27.0"
+isort = "^8.0.1"
+mypy = "^2.1.0"
+pre-commit = "^4.6.1"
+flake8 = ">=6.1,<8.0"
+ipdb = "^0.13.13"
+bump2version = "^1.0.1"
+
+[tool.pytest.ini_options]
+addopts = "--ignore=tests/docker"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

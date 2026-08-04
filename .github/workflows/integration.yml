@@ -1,0 +1,22 @@
+name: Integration
+
+permissions:
+  contents: read
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  zfs:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v7
+    - name: Load ZFS kernel module
+      run: sudo modprobe zfs
+    - name: Report host ZFS kmod version
+      run: cat /sys/module/zfs/version
+    - name: Run ZFS integration test
+      run: make test-docker
