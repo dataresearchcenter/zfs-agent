@@ -18,7 +18,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.9", "3.10", "3.11", "3.12", "3.13", "3.14"]
+        python-version: ["3.10", "3.11", "3.12", "3.13", "3.14"]
 
     steps:
     - uses: actions/checkout@v7
@@ -27,9 +27,15 @@ jobs:
       with:
         python-version: ${{ matrix.python-version }}
     - name: Install poetry
-      run: curl -sSL https://install.python-poetry.org | python3 -
+      # With the runner's own interpreter, not the matrix one setup-python
+      # put on PATH: poetry has its own floor (3.10 as of 2.4) and fails to
+      # install on anything below it. The project venv is unaffected,
+      # virtualenvs.use-poetry-python defaults to false.
+      run: curl -sSL https://install.python-poetry.org | /usr/bin/python3 -
     - name: Configure poetry
       run: poetry config virtualenvs.in-project true
+    - name: Build the project venv on Python ${{ matrix.python-version }}
+      run: poetry env use "${{ matrix.python-version }}"
     - name: set PY
       run: echo "PY=$(python -VV | sha256sum | cut -d' ' -f1)" >> $GITHUB_ENV
     - name: Set up poetry cache
@@ -72,4 +78,4 @@ jobs:
       uses: coverallsapp/github-action@v2
       with:
         parallel-finished: true
-        carryforward: "run-3.9,run-3.10,run-3.11,run-3.12,run-3.13,run-3.14"
+        carryforward: "run-3.10,run-3.11,run-3.12,run-3.13,run-3.14"
