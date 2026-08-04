@@ -1,3 +1,12 @@
+[![zfs-agent on pypi](https://img.shields.io/pypi/v/zfs-agent)](https://pypi.org/project/zfs-agent/)
+[![PyPI Downloads](https://static.pepy.tech/badge/zfs-agent/month)](https://pepy.tech/projects/zfs-agent)
+[![PyPI - Python Version](https://img.shields.io/pypi/pyversions/zfs-agent)](https://pypi.org/project/zfs-agent/)
+[![Python test and package](https://github.com/dataresearchcenter/zfs-agent/actions/workflows/python.yml/badge.svg)](https://github.com/dataresearchcenter/zfs-agent/actions/workflows/python.yml)
+[![pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit)](https://github.com/pre-commit/pre-commit)
+[![Coverage Status](https://coveralls.io/repos/github/dataresearchcenter/zfs-agent/badge.svg?branch=main)](https://coveralls.io/github/dataresearchcenter/zfs-agent?branch=main)
+[![AGPLv3+ License](https://img.shields.io/pypi/l/zfs-agent)](./LICENSE)
+
+
 # zfs-agent
 
 ZFS dataset management for unprivileged users via a Unix domain socket.
