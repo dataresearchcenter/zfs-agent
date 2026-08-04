@@ -2,7 +2,7 @@
 
 import subprocess
 
-from structlog import get_logger
+from zfs_agent.logs import get_logger
 
 log = get_logger(__name__)
 

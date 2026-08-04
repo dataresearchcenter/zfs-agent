@@ -6,6 +6,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 A privilege-separation daemon: an unprivileged (e.g. containerized) client requests `zfs create` operations over a Unix domain socket, and a host-side agent running with ZFS privileges validates and executes them. Linux-only (relies on `SO_PEERCRED`). Python 3.11+, managed with Poetry.
 
+No runtime dependencies, deliberately: `dependencies = []` in `pyproject.toml`, and the package must stay importable in a bare interpreter. Anything new goes in the dev group.
+
 The code is the "socket agent mode" of ftm-lakehouse's ZFS integration, extracted into a standalone package. The upstream design (deployment modes, container setup, security model) is documented at <https://openaleph.org/docs/lib/ftm-lakehouse/deployment/zfs/>; the standalone package renames the env vars from `LAKEHOUSE_ZFS_*` to `ZFS_*`.
 
 ## Behaviour rules for code agents
@@ -44,7 +46,8 @@ Client/server pair around a one-line JSON protocol, in `zfs_agent/`. The server 
   - `validate_props()` is an allowlist, since ZFS properties reach `zfs create -o` on the privileged side. `mountpoint` alone is a root escalation, because it redirects the mountpoint that `--owner` then chowns. The base set in `_DEFAULT_PROPS` is extended by `ZFS_EXTRA_PROPS` on the agent (`allowed_props()`), and the effective set is logged at startup.
 - **`zfs.py`** – the only module that shells out. `zfs_create_local()` probes `zfs list` first (a pre-existing dataset is an error only when `exist_ok=False`; `zfs create -p` alone can’t tell, it exits 0 either way), then runs the create. `_chown_mountpoint()` logs failures instead of raising, and skips anything that isn’t an absolute path (`-`, `none`, `legacy`).
 - **`client.py`** – `zfs_create_socket(socket_path, dataset, exist_ok=True, **props)` talks to the agent; `zfs_create(dataset, exist_ok=True, **props)` dispatches: socket when `Settings().zfs_socket` is set, else `zfs_create_local`. ZFS properties are always keywords. `Settings` and `zfs_create_local` are resolved through module attributes at call time so test patches (`zfs_agent.settings.Settings`, `zfs_agent.client.zfs_create_socket`, `zfs_agent.zfs.zfs_create_local`) take effect. Tests that drive the server instead patch `zfs_agent.agent.zfs_create_local`, the name `handle_request()` actually calls.
-- **`settings.py`** – `Settings` reads `ZFS_SOCKET`, `ZFS_POOL`, `ZFS_OWNER` in `__init__`; `zfs_allowed_uid` and `zfs_extra_props` are properties parsed on access, so a malformed value only breaks the code that reads it.
+- **`settings.py`** – `Settings` reads `ZFS_SOCKET`, `ZFS_POOL`, `ZFS_OWNER` in `__init__`; `zfs_allowed_uid`, `zfs_log_level` and `zfs_extra_props` are properties parsed on access, so a malformed value only breaks the code that reads it.
+- **`logs.py`** – the `log.warning("Event", dataset=name)` call style the package uses, rendered onto stdlib `logging` as `key=value` suffixes (this is what `structlog` used to provide). Only `cli.py` calls `configure()`; imported as a library the package attaches no handlers, so it inherits the application's logging setup.
 
 Protocol: newline-terminated JSON both ways. Requests are `{"action": "create", "dataset": ..., "props": {...}, "exist_ok": bool}`, responses `{"ok": true}` or `{"ok": false, "error": "..."}`. `exist_ok` is on the wire on purpose: without it the flag would mean different things locally and remotely. The only action is `create`.
 

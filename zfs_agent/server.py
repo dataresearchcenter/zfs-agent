@@ -5,9 +5,8 @@ import signal
 import socket
 from typing import Any
 
-from structlog import get_logger
-
 from zfs_agent.agent import handle_connection
+from zfs_agent.logs import get_logger
 from zfs_agent.validate import allowed_props
 
 log = get_logger(__name__)

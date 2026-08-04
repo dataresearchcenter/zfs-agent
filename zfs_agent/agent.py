@@ -1,12 +1,11 @@
 """Serving one connection: peer authentication, protocol, dispatch."""
 
+import json
 import socket
 import struct
 from typing import Any
 
-import orjson
-from structlog import get_logger
-
+from zfs_agent.logs import get_logger
 from zfs_agent.validate import validate_dataset, validate_props
 from zfs_agent.zfs import zfs_create_local
 
@@ -85,7 +84,8 @@ def handle_request(
 def _send(conn: socket.socket, response: dict[str, Any]) -> None:
     """Write one response line, tolerating a peer that already hung up."""
     try:
-        conn.sendall(orjson.dumps(response) + b"\n")
+        # ensure_ascii keeps the payload one line and byte-safe to encode.
+        conn.sendall(json.dumps(response).encode("ascii") + b"\n")
     except OSError as e:
         log.debug("Cannot send response", error=str(e))
 
@@ -122,8 +122,9 @@ def handle_connection(
 
         conn.settimeout(_REQUEST_TIMEOUT)
         try:
-            # Binary mode: decoding is orjson's job. A text stream would
-            # raise UnicodeDecodeError here, outside the JSON handler.
+            # Binary mode: json.loads decodes the bytes itself. A text
+            # stream would raise UnicodeDecodeError here, outside any
+            # handler, on a request that is merely malformed.
             with conn.makefile("rb") as fh:
                 line = fh.readline(_MAX_REQUEST + 1)
         except OSError as e:
@@ -138,8 +139,9 @@ def handle_connection(
             return
 
         try:
-            data = orjson.loads(line)
-        except orjson.JSONDecodeError as e:
+            data = json.loads(line)
+        # Non-UTF-8 bytes raise UnicodeDecodeError, not JSONDecodeError.
+        except (UnicodeDecodeError, json.JSONDecodeError) as e:
             log.warning("Received invalid JSON", error=str(e))
             response: dict[str, Any] = {"ok": False, "error": f"invalid JSON: {e}"}
         else:

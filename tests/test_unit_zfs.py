@@ -1,9 +1,9 @@
+import json
 import os
 import socket
 import threading
 from unittest.mock import patch
 
-import orjson
 import pytest
 
 from zfs_agent.agent import (
@@ -158,13 +158,13 @@ class TestHandleConnection:
     def test_roundtrip(self, _mock_create):
         client, server_conn = _make_socketpair()
         try:
-            request = orjson.dumps({"action": "create", "dataset": "tank/ds"})
+            request = json.dumps({"action": "create", "dataset": "tank/ds"}).encode()
             client.sendall(request + b"\n")
             client.shutdown(socket.SHUT_WR)
 
             handle_connection(server_conn, None, allowed_uid=ANY_UID)
 
-            response = orjson.loads(client.makefile().readline())
+            response = json.loads(client.makefile().readline())
             assert response["ok"] is True
         finally:
             client.close()
@@ -178,7 +178,7 @@ class TestHandleConnection:
 
             handle_connection(server_conn, None, allowed_uid=ANY_UID)
 
-            response = orjson.loads(client.makefile().readline())
+            response = json.loads(client.makefile().readline())
             assert response["ok"] is False
             assert "invalid JSON" in response["error"]
         finally:
@@ -203,13 +203,13 @@ class TestPeerAuth:
     def test_handle_connection_accepts_matching_uid(self, _mock_create):
         client, server_conn = _make_socketpair()
         try:
-            request = orjson.dumps({"action": "create", "dataset": "tank/ds"})
+            request = json.dumps({"action": "create", "dataset": "tank/ds"}).encode()
             client.sendall(request + b"\n")
             client.shutdown(socket.SHUT_WR)
 
             handle_connection(server_conn, None, allowed_uid=os.getuid())
 
-            response = orjson.loads(client.makefile().readline())
+            response = json.loads(client.makefile().readline())
             assert response["ok"] is True
         finally:
             client.close()
@@ -220,7 +220,7 @@ class TestPeerAuth:
         without ever reaching ``zfs_create_local``."""
         client, server_conn = _make_socketpair()
         try:
-            request = orjson.dumps({"action": "create", "dataset": "tank/ds"})
+            request = json.dumps({"action": "create", "dataset": "tank/ds"}).encode()
             client.sendall(request + b"\n")
             client.shutdown(socket.SHUT_WR)
 
@@ -228,7 +228,7 @@ class TestPeerAuth:
             wrong_uid = os.getuid() + 99999
             handle_connection(server_conn, None, allowed_uid=wrong_uid)
 
-            response = orjson.loads(client.makefile().readline())
+            response = json.loads(client.makefile().readline())
             assert response["ok"] is False
             assert "unauthorized peer uid" in response["error"]
             mock_create.assert_not_called()
@@ -241,13 +241,13 @@ class TestPeerAuth:
         default, so forgetting the argument is a TypeError."""
         client, server_conn = _make_socketpair()
         try:
-            request = orjson.dumps({"action": "create", "dataset": "tank/ds"})
+            request = json.dumps({"action": "create", "dataset": "tank/ds"}).encode()
             client.sendall(request + b"\n")
             client.shutdown(socket.SHUT_WR)
 
             handle_connection(server_conn, None, allowed_uid=ANY_UID)
 
-            response = orjson.loads(client.makefile().readline())
+            response = json.loads(client.makefile().readline())
             assert response["ok"] is True
         finally:
             client.close()
@@ -274,9 +274,9 @@ class _FakeAgent:
         try:
             conn, _ = self.server.accept()
             with conn, conn.makefile("rb") as fh:
-                self.request = orjson.loads(fh.readline())
+                self.request = json.loads(fh.readline())
                 if self.response is not None:
-                    conn.sendall(orjson.dumps(self.response) + b"\n")
+                    conn.sendall(json.dumps(self.response).encode() + b"\n")
         except Exception as e:
             self.error = e
 
@@ -491,7 +491,7 @@ class TestConnectionRobustness:
 
             handle_connection(server_conn, None, allowed_uid=ANY_UID)
 
-            response = orjson.loads(client.makefile("rb").readline())
+            response = json.loads(client.makefile("rb").readline())
             assert response["ok"] is False
             mock_create.assert_not_called()
         finally:
@@ -507,7 +507,7 @@ class TestConnectionRobustness:
 
             handle_connection(server_conn, None, allowed_uid=ANY_UID)
 
-            response = orjson.loads(client.makefile("rb").readline())
+            response = json.loads(client.makefile("rb").readline())
             assert response["ok"] is False
             assert "too large" in response["error"]
             mock_create.assert_not_called()
@@ -529,7 +529,7 @@ class TestConnectionRobustness:
     def test_client_hangup_before_response(self, mock_create):
         """The create already happened; the peer just left."""
         client, server_conn = _make_socketpair()
-        request = orjson.dumps({"action": "create", "dataset": "tank/ds"})
+        request = json.dumps({"action": "create", "dataset": "tank/ds"}).encode()
         client.sendall(request + b"\n")
         client.shutdown(socket.SHUT_RDWR)
         client.close()

@@ -1,12 +1,11 @@
 """ZFS dataset creation: socket client and settings-based dispatch."""
 
+import json
 import socket
 from typing import Any
 
-import orjson
-from structlog import get_logger
-
 from zfs_agent import settings, zfs
+from zfs_agent.logs import get_logger
 
 log = get_logger(__name__)
 
@@ -22,7 +21,7 @@ def zfs_create_socket(
     with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as sock:
         sock.settimeout(_RESPONSE_TIMEOUT)
         sock.connect(socket_path)
-        request = orjson.dumps(
+        request = json.dumps(
             {
                 "action": "create",
                 "dataset": dataset,
@@ -30,15 +29,15 @@ def zfs_create_socket(
                 "exist_ok": exist_ok,
             }
         )
-        sock.sendall(request + b"\n")
+        sock.sendall(request.encode("ascii") + b"\n")
         with sock.makefile("rb") as fh:
             line = fh.readline()
 
     if not line:
         raise RuntimeError("zfs create failed: no response from agent")
     try:
-        response: Any = orjson.loads(line)
-    except orjson.JSONDecodeError as e:
+        response: Any = json.loads(line)
+    except (UnicodeDecodeError, json.JSONDecodeError) as e:
         raise RuntimeError(f"zfs create failed: malformed response: {e}") from e
     if not isinstance(response, dict):
         raise RuntimeError("zfs create failed: malformed response")

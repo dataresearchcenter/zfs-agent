@@ -4,10 +4,9 @@ Not named ``*_test.py`` on purpose: pytest must never collect this, from
 any working directory.
 """
 
+import json
 import os
 import socket
-
-import orjson
 
 from zfs_agent.client import zfs_create, zfs_create_socket
 
@@ -84,7 +83,7 @@ for junk in (
 
 # hang up without reading the response
 send_raw(
-    orjson.dumps({"action": "create", "dataset": DATASET}) + b"\n",
+    json.dumps({"action": "create", "dataset": DATASET}).encode() + b"\n",
     read_response=False,
 )
 

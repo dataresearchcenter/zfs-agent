@@ -4,7 +4,8 @@ ZFS dataset management for unprivileged users via a Unix domain socket.
 
 A host-side agent runs with ZFS privileges and executes validated `zfs create` requests on behalf of clients that lack ZFS tools or privileges – typically containers. Used in [ftm-lakehouse](https://openaleph.org/docs/lib/ftm-lakehouse/deployment/zfs/).
 
-Linux only (peer authentication relies on `SO_PEERCRED`).
+Linux only (peer authentication relies on `SO_PEERCRED`), Python 3.11+, no
+dependencies.
 
 ## Install
 
@@ -20,6 +21,9 @@ Run the agent on the host (as a user that may run `zfs create`, typically root):
 - `--owner` chowns new dataset mountpoints to this `uid:gid` (env: `ZFS_OWNER`)
 - `--allowed-uid` only accepts connections from this UID, verified via
   `SO_PEERCRED`; defaults to the agent's own UID (env: `ZFS_ALLOWED_UID`)
+- `--log-level` sets the agent's log verbosity, default `INFO` (env:
+  `ZFS_LOG_LEVEL`). Only the CLI configures logging; imported as a library,
+  the package logs through `logging` without attaching handlers.
 
 Clients may only set ZFS properties from a built-in allowlist of tuning
 knobs (`compression`, `recordsize`, `atime`, `quota`, …). Set

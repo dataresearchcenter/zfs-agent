@@ -7,6 +7,7 @@ import argparse
 import os
 from typing import Optional
 
+from zfs_agent.logs import configure
 from zfs_agent.server import serve
 from zfs_agent.settings import Settings
 
@@ -38,6 +39,12 @@ def _parser() -> argparse.ArgumentParser:
         "--owner",
         metavar="UID:GID",
         help="uid:gid to chown new mountpoints to (or set ZFS_OWNER)",
+    )
+    parser.add_argument(
+        "-l",
+        "--log-level",
+        metavar="LEVEL",
+        help="DEBUG, INFO, WARNING, ERROR (or set ZFS_LOG_LEVEL). Default INFO",
     )
     parser.add_argument(
         "--allowed-uid",
@@ -72,6 +79,12 @@ def cli(argv: Optional[list[str]] = None) -> None:
     args = parser.parse_args(argv)
 
     settings = Settings()
+    level = (args.log_level or settings.zfs_log_level).upper()
+    try:
+        configure(level)
+    except ValueError:
+        parser.error(f"unknown log level: {level!r}")
+
     sock_path = _required(
         parser,
         args.socket_path or settings.zfs_socket,

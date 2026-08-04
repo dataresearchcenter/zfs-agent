@@ -22,6 +22,10 @@ class Settings:
             ) from None
 
     @property
+    def zfs_log_level(self) -> str:
+        return os.environ.get("ZFS_LOG_LEVEL", "INFO").upper()
+
+    @property
     def zfs_extra_props(self) -> frozenset[str]:
         """ZFS properties clients may set on top of the built-in allowlist."""
         value = os.environ.get("ZFS_EXTRA_PROPS", "")
