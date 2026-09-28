@@ -8,7 +8,7 @@ import json
 import os
 import socket
 
-from zfs_agent.client import zfs_create, zfs_create_socket
+from zfs_agent.client import zfs_create, zfs_create_socket, zfs_status
 
 SOCKET = os.environ["ZFS_SOCKET"]
 POOL_ROOT = os.environ["POOL_ROOT"]
@@ -89,5 +89,13 @@ send_raw(
 
 # the agent survived all of it
 zfs_create_socket(SOCKET, f"{POOL_ROOT}/after_junk")
+
+# streaming and snapshots are off unless the agent was started with them
+try:
+    zfs_status(DATASET)
+except RuntimeError as exc:
+    assert "action not allowed" in str(exc), exc
+else:
+    raise AssertionError("agent served status without --actions")
 
 print("integration checks passed (uid=1000)")

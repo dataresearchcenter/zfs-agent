@@ -6,7 +6,10 @@ from typing import Any
 from zfs_agent.settings import Settings
 
 _ZFS_COMPONENT_RE = re.compile(r"^[a-zA-Z0-9][a-zA-Z0-9._-]*\Z")
+# Snapshot names may also carry colons – sanoid and zrepl timestamps do.
+_SNAPSHOT_NAME_RE = re.compile(r"^[a-zA-Z0-9][a-zA-Z0-9._:-]*\Z")
 _PROP_VALUE_RE = re.compile(r"^[a-zA-Z0-9][a-zA-Z0-9._:-]*\Z")
+_TOKEN_RE = re.compile(r"^[0-9a-zA-Z-]+\Z")
 
 # ZFS properties a client may set, extended by ``ZFS_EXTRA_PROPS`` on the
 # agent. Anything outside the result is refused: ``mountpoint`` steers the
@@ -59,6 +62,30 @@ def validate_dataset(dataset: Any, allowed_pool: str | None) -> str | None:
         dataset == allowed_pool or dataset.startswith(f"{allowed_pool}/")
     ):
         return f"dataset {dataset!r} not under pool {allowed_pool!r}"
+    return None
+
+
+def validate_snapshot_name(name: Any) -> str | None:
+    """Validate the part of a snapshot name after the ``@``."""
+    if not isinstance(name, str):
+        return f"snapshot name must be a string, got {type(name).__name__}"
+    if not _SNAPSHOT_NAME_RE.match(name):
+        return f"invalid snapshot name: {name!r}"
+    return None
+
+
+def validate_snapshot(snapshot: Any, allowed_pool: str | None) -> str | None:
+    """Validate a full ``dataset@name`` snapshot under ``allowed_pool``."""
+    if not isinstance(snapshot, str) or snapshot.count("@") != 1:
+        return f"invalid snapshot: {snapshot!r}"
+    dataset, name = snapshot.split("@")
+    return validate_dataset(dataset, allowed_pool) or validate_snapshot_name(name)
+
+
+def validate_token(token: Any) -> str | None:
+    """Validate a ``receive_resume_token`` (hex and dashes)."""
+    if not isinstance(token, str) or not _TOKEN_RE.match(token):
+        return "invalid resume token"
     return None
 
 

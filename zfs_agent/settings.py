@@ -26,6 +26,13 @@ class Settings:
         return os.environ.get("ZFS_LOG_LEVEL", "INFO").upper()
 
     @property
+    def zfs_actions(self) -> frozenset[str] | None:
+        """Actions the agent serves, or None for the default (``create``)."""
+        value = os.environ.get("ZFS_ACTIONS", "")
+        actions = frozenset(a.strip() for a in value.split(",") if a.strip())
+        return actions or None
+
+    @property
     def zfs_extra_props(self) -> frozenset[str]:
         """ZFS properties clients may set on top of the built-in allowlist."""
         value = os.environ.get("ZFS_EXTRA_PROPS", "")

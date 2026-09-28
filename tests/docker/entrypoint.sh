@@ -102,4 +102,28 @@ runuser -u appuser -- env ZFS_SOCKET="$REJECT_SOCKET" POOL_ROOT="$POOL_ROOT" \
 stop_agent "$REJECT_PID"
 unset REJECT_PID
 
+# --- Phase 3: streaming send/receive, as the allowed UID ---
+
+# A stream that carries a mountpoint (``-p``), to check that ``receive``
+# does not let it choose where root mounts the dataset.
+zfs create -o mountpoint=/evilmnt "$POOL_ROOT/evil"
+zfs snapshot "$POOL_ROOT/evil@s1"
+zfs send -p "$POOL_ROOT/evil@s1" > /tmp/evil.stream
+chmod 0644 /tmp/evil.stream
+
+/opt/venv/bin/zfs-agent \
+    --socket "$SOCKET" \
+    --pool "$POOL_ROOT" \
+    --owner 1000:1000 \
+    --allowed-uid 1000 \
+    --actions create,status,snapshot,send,receive,abort &
+AGENT_PID=$!
+wait_for_socket "$SOCKET"
+
+runuser -u appuser -- env ZFS_SOCKET="$SOCKET" POOL_ROOT="$POOL_ROOT" \
+    "$PYTHON" "$CHECKS/stream_check.py"
+
+stop_agent "$AGENT_PID"
+unset AGENT_PID
+
 echo "OK: zfs-agent integration test passed"

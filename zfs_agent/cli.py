@@ -7,6 +7,7 @@ import argparse
 import os
 from typing import Optional
 
+from zfs_agent.agent import ACTIONS, DEFAULT_ACTIONS
 from zfs_agent.logs import configure
 from zfs_agent.server import serve
 from zfs_agent.settings import Settings
@@ -17,8 +18,8 @@ def _parser() -> argparse.ArgumentParser:
         prog="zfs-agent",
         description=(
             "Start a ZFS socket agent for container-based deployments. "
-            "Listens on a Unix socket and executes `zfs create` commands on "
-            "behalf of containerized clients that lack local ZFS tools."
+            "Listens on a Unix socket and executes `zfs` commands on behalf "
+            "of containerized clients that lack local ZFS tools."
         ),
     )
     parser.add_argument(
@@ -55,6 +56,15 @@ def _parser() -> argparse.ArgumentParser:
             "Defaults to the agent's own UID, i.e. only the user running the "
             "agent can call it. Override to grant a different client UID "
             "(e.g. the container user). Or set ZFS_ALLOWED_UID."
+        ),
+    )
+    parser.add_argument(
+        "--actions",
+        metavar="ACTIONS",
+        help=(
+            "Comma-separated actions to serve, out of "
+            f"{','.join(sorted(ACTIONS))}. Default: create "
+            "(or set ZFS_ACTIONS)"
         ),
     )
     return parser
@@ -104,9 +114,17 @@ def cli(argv: Optional[list[str]] = None) -> None:
             else os.getuid()
         )
 
+    actions = settings.zfs_actions or DEFAULT_ACTIONS
+    if args.actions:
+        actions = frozenset(a.strip() for a in args.actions.split(",") if a.strip())
+    unknown = actions - ACTIONS
+    if unknown:
+        parser.error(f"unknown actions: {','.join(sorted(unknown))}")
+
     serve(
         sock_path,
         pool,
         args.owner or settings.zfs_owner,
         allowed_uid=allowed_uid,
+        actions=actions,
     )
