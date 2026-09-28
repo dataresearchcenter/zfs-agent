@@ -344,14 +344,14 @@ files = [
 
 [[package]]
 name = "flake8"
-version = "7.4.0"
+version = "7.4.1"
 description = "the modular source code checker: pep8 pyflakes and co"
 optional = false
 python-versions = ">=3.10"
 groups = ["dev"]
 files = [
-    {file = "flake8-7.4.0-py2.py3-none-any.whl", hash = "sha256:7c8d371b6d1a2d0c1f9cdf9f865c91f16f880e6cf7b1da0fcfaba31006532f38"},
-    {file = "flake8-7.4.0.tar.gz", hash = "sha256:d3e0beb3d152209b4dc50fa5e3132844bf4ee4ff994cec87d6913d06b8eb5afc"},
+    {file = "flake8-7.4.1-py2.py3-none-any.whl", hash = "sha256:78480274a6d7289d9cb8eafeda241fac57d4ea687d26e32dfdca37b72cdeddad"},
+    {file = "flake8-7.4.1.tar.gz", hash = "sha256:84ea5afcaf344487b0ea5baaebb8100f4cfaebc01f755998f75876664029f587"},
 ]
 
 [package.dependencies]
@@ -1275,4 +1275,4 @@ files = [
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.10,<3.15"
-content-hash = "71f4366c878fe644a9a83743a036cf4c50aaf191a7d5a72397e7a8153430e37c"
+content-hash = "99f32751d9bd1bdb4a24fcef549a22b3ac3bcc6082efdc909ee827612332d7d0"
