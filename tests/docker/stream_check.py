@@ -116,7 +116,8 @@ assert replicate(SRC, DST, snapshot="s2", since="s1") is None
 assert read(f"/{DST}/a.txt") == b"two"
 assert [name for name, _ in guids(DST)] == ["s1", "s2"]
 
-# an interrupted receive of a new dataset leaves a token under %recv ...
+# an interrupted receive of a new dataset leaves that dataset behind,
+# without snapshots, carrying the resume token ...
 zfs_create(f"{POOL_ROOT}/big")
 write(f"/{POOL_ROOT}/big/data.bin", os.urandom(32 << 20))
 zfs_snapshot(f"{POOL_ROOT}/big@s1")
@@ -125,7 +126,7 @@ error = replicate(
 )
 assert error is not None, "truncated stream was accepted"
 status = zfs_status(f"{POOL_ROOT}/big_copy")
-assert not status["exists"] and status["resume_token"], status
+assert status["resume_token"] and status["snapshots"] == [], status
 
 # the token only resumes what it was made for - not a send of another
 # dataset, which ``zfs send -t`` alone would happily stream
@@ -148,7 +149,33 @@ assert error is None, error
 assert read(f"/{POOL_ROOT}/big_copy/data.bin") == read(f"/{POOL_ROOT}/big/data.bin")
 assert zfs_status(f"{POOL_ROOT}/big_copy")["resume_token"] is None
 
-# a partial receive that won't be resumed can be discarded
+# an interrupted incremental keeps the dataset as it was – its partial
+# state sits in a hidden %recv child – and the token on the dataset
+write(f"/{POOL_ROOT}/big/data.bin", os.urandom(32 << 20))
+zfs_snapshot(f"{POOL_ROOT}/big@s2")
+error = replicate(
+    f"{POOL_ROOT}/big",
+    f"{POOL_ROOT}/big_copy",
+    snapshot="s2",
+    since="s1",
+    limit=8 << 20,
+)
+assert error is not None, "truncated incremental was accepted"
+status = zfs_status(f"{POOL_ROOT}/big_copy")
+assert status["resume_token"], status
+assert [s["name"] for s in status["snapshots"]] == ["s1"], status
+error = replicate(
+    f"{POOL_ROOT}/big", f"{POOL_ROOT}/big_copy", token=status["resume_token"]
+)
+assert error is None, error
+assert read(f"/{POOL_ROOT}/big_copy/data.bin") == read(f"/{POOL_ROOT}/big/data.bin")
+assert [s["name"] for s in zfs_status(f"{POOL_ROOT}/big_copy")["snapshots"]] == [
+    "s1",
+    "s2",
+]
+
+# a partial receive that won't be resumed can be discarded – for a new
+# dataset, that destroys what the receive had created
 replicate(f"{POOL_ROOT}/big", f"{POOL_ROOT}/big_gone", snapshot="s1", limit=8 << 20)
 assert zfs_status(f"{POOL_ROOT}/big_gone")["resume_token"]
 zfs_abort(f"{POOL_ROOT}/big_gone")

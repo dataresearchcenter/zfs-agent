@@ -1,6 +1,7 @@
 """Privileged side: shell out to ``zfs`` and hand the mountpoint over."""
 
 import re
+import signal
 import subprocess
 from typing import TypedDict
 
@@ -67,6 +68,13 @@ def _run_zfs_stream(
         raise RuntimeError(f"cannot run zfs: {e}") from e
     if result.returncode != 0:
         error = result.stderr.decode(errors="replace").strip()
+        if not error:  # e.g. a send killed by SIGPIPE: its reader went away
+            code = result.returncode
+            error = (
+                f"killed by {signal.Signals(-code).name}"
+                if code < 0
+                else f"exit code {code}"
+            )
         raise RuntimeError(f"zfs {args[0]} failed: {error}")
 
 
@@ -148,16 +156,14 @@ def zfs_create_local(
 def zfs_status_local(dataset: str) -> Status:
     """Snapshots (oldest first) and pending resume token of a dataset.
 
-    An interrupted resumable receive of a *new* dataset leaves no dataset
-    behind, only its partial state under ``<dataset>/%recv`` – which is
-    where the resume token is then found.
+    An interrupted resumable receive leaves its token on the dataset
+    received into. A receive that was creating the dataset leaves it
+    behind – without snapshots, until resumed or aborted (``zfs receive -A``
+    destroys it again); one into an existing dataset keeps its partial state
+    in a hidden ``%recv`` child, the dataset itself untouched.
     """
     if not _exists(dataset):
-        return {
-            "exists": False,
-            "snapshots": [],
-            "resume_token": _resume_token(f"{dataset}/%recv"),
-        }
+        return {"exists": False, "snapshots": [], "resume_token": None}
     result = _run_zfs(
         [
             "list",

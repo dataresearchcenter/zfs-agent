@@ -54,7 +54,7 @@ case "$1" in
     esac ;;
   get)
     case "$*" in
-      *%recv*) echo "1-abc-def" ;;
+      *partial*) echo "1-abc-def" ;;
       *) echo "-" ;;
     esac ;;
   snapshot) ;;
@@ -196,13 +196,27 @@ class TestLocal:
             "resume_token": None,
         }
 
-    def test_status_missing_dataset_reports_partial_receive(self, fake_zfs):
-        """A new dataset's interrupted receive lives on under ``%recv``."""
+    def test_status_missing_dataset(self, fake_zfs):
         assert zfs_status_local("tank/missing") == {
             "exists": False,
             "snapshots": [],
-            "resume_token": "1-abc-def",
+            "resume_token": None,
         }
+        assert not any("get" in c for c in calls(fake_zfs))
+
+    def test_status_reports_a_pending_resume_token(self, fake_zfs):
+        """An interrupted receive's token sits on the dataset received into."""
+        assert zfs_status_local("tank/partial")["resume_token"] == "1-abc-def"
+
+    def test_failure_without_stderr_names_the_signal(self, fake_zfs):
+        """A send whose reader went away dies of SIGPIPE, saying nothing."""
+        from zfs_agent.zfs import _run_zfs_stream
+
+        with pytest.raises(RuntimeError, match="zfs send failed: killed by SIGPIPE"):
+            with patch("zfs_agent.zfs.subprocess.run") as run:
+                run.return_value.returncode = -13
+                run.return_value.stderr = b""
+                _run_zfs_stream(["send", "tank/ds@a"])
 
     def test_failure_carries_stderr(self, fake_zfs):
         from zfs_agent.zfs import _run_zfs_stream
