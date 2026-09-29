@@ -3,9 +3,10 @@
 import os
 import signal
 import socket
+import threading
 from typing import Any
 
-from zfs_agent.agent import handle_connection
+from zfs_agent.agent import DEFAULT_ACTIONS, handle_connection
 from zfs_agent.logs import get_logger
 from zfs_agent.validate import allowed_props
 
@@ -43,8 +44,13 @@ def serve(
     owner: str | None = None,
     *,
     allowed_uid: int,
+    actions: frozenset[str] = DEFAULT_ACTIONS,
 ) -> None:
-    """Serve ``zfs create`` requests until SIGINT or SIGTERM arrives."""
+    """Serve requests until SIGINT or SIGTERM arrives.
+
+    Each connection gets its own thread: a ``send`` or ``receive`` lasts as
+    long as its stream, which must not hold up anybody's ``create``.
+    """
     server = _bind(socket_path, allowed_uid)
     log.info(
         "zfs-agent listening",
@@ -52,17 +58,28 @@ def serve(
         pool=pool,
         owner=owner,
         allowed_uid=allowed_uid,
+        actions=",".join(sorted(actions)),
         allowed_props=sorted(allowed_props()),
     )
 
+    def _handle(conn: socket.socket) -> None:
+        try:
+            handle_connection(
+                conn, pool, owner, allowed_uid=allowed_uid, actions=actions
+            )
+        except Exception:
+            # One bad request must not take the daemon down.
+            log.exception("Error handling connection")
+
+    threads: list[threading.Thread] = []
     stopping = False
 
     def _shutdown(*args: Any) -> None:
         nonlocal stopping
         log.info("Shutting down zfs-agent")
         stopping = True
-        # Unblocks accept() so the loop exits once the current request is
-        # done, instead of killing an in-flight zfs create.
+        # Unblocks accept() so the loop exits; in-flight requests are
+        # joined below instead of being killed mid-operation.
         server.close()
 
     signal.signal(signal.SIGINT, _shutdown)
@@ -76,12 +93,15 @@ def serve(
                 if not stopping:
                     log.error("Cannot accept connections", error=str(e))
                 break
-            try:
-                handle_connection(conn, pool, owner, allowed_uid=allowed_uid)
-            except Exception:
-                # One bad request must not take the daemon down.
-                log.exception("Error handling connection")
+            threads = [t for t in threads if t.is_alive()]
+            thread = threading.Thread(target=_handle, args=(conn,))
+            thread.start()
+            threads.append(thread)
     finally:
         server.close()
         if os.path.lexists(socket_path):
             os.unlink(socket_path)
+        # A stream can take hours: new clients get ENOENT meanwhile rather
+        # than a socket nobody accepts on.
+        for thread in threads:
+            thread.join()
